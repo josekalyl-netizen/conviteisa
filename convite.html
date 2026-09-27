@@ -199,6 +199,8 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
 .presentes-intro{font-size:1.05rem;max-width:34ch;margin:0 auto 18px;text-wrap:balance}
 .loja-barra{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin-bottom:16px}
 .loja-barra select{width:auto;min-height:42px;padding:6px 12px;font-size:.92rem}
+.importante{background:var(--tiffany-claro);border-left:4px solid var(--tiffany-forte);border-radius:12px;padding:10px 14px;font-size:.95rem;margin:4px 0 14px;text-align:left}
+.importante b{color:var(--tiffany-escuro)}
 .aviso-exemplo{background:#fff;border:1.5px dashed var(--tiffany-forte);border-radius:14px;padding:8px 14px;font-size:.88rem;margin:0 auto 14px;max-width:420px}
 .loja{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;text-align:left}
 .presente{background:#fff;border-radius:22px;box-shadow:var(--sombra);overflow:hidden;display:flex;flex-direction:column;border:1px solid #fff}
@@ -415,6 +417,7 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
               <input type="radio" id="g-pix" name="pagamento" value="pix" checked><label for="g-pix"><b>Pix</b><small id="g-pix-sub">QR Code ou copia e cola</small></label>
               <input type="radio" id="g-cartao" name="pagamento" value="cartao"><label for="g-cartao"><b>Cartão de crédito</b><small id="g-cartao-sub">link de pagamento</small></label>
             </div>
+            <p class="importante" style="margin:10px 0 0">No pagamento, você vai <b>digitar o valor do presente</b> (o total acima) no app do banco ou no link do cartão.</p>
           </div>
           <p class="erro" id="g-erro" role="alert" hidden></p>
           <button class="botao rosa" type="submit" style="width:100%">Continuar para o pagamento</button>
@@ -425,13 +428,14 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
         <p class="centro chamada">Pague com Pix</p>
         <p class="valor-grande" id="pix-valor"></p>
         <p class="centro" style="margin:4px 0 12px">para <b id="pix-nome"></b></p>
+        <p class="importante"><b>Importante:</b> se o app do banco pedir o valor, digite exatamente <b data-valor-pedido></b>. Esse é o valor do presente escolhido.</p>
         <div class="pix-qr" id="pix-qr"></div>
         <label for="pix-codigo">Pix copia e cola</label>
         <div class="copia"><input id="pix-codigo" type="text" readonly><button class="botao rosa" type="button" id="pix-copiar">Copiar</button></div>
         <ol class="passos-pag">
           <li>Abra o app do seu banco e escolha <b>Pix</b>.</li>
           <li>Leia o QR Code ou cole o código copiado.</li>
-          <li>Confira o valor e o nome e confirme.</li>
+          <li>Confira se o valor é <b data-valor-pedido></b> (se estiver em branco, digite esse valor) e confirme.</li>
         </ol>
         <div class="pilha">
           <button class="botao rosa" type="button" data-concluir="pix">Já fiz o Pix</button>
@@ -442,7 +446,7 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
       <div id="passo-cartao" hidden>
         <p class="centro chamada">Pague com cartão de crédito</p>
         <p class="valor-grande" id="cartao-valor"></p>
-        <p class="centro" style="margin:6px 0 14px">No link de pagamento, informe exatamente este valor.</p>
+        <p class="importante"><b>Importante:</b> o link de cartão não vem com o valor preenchido. Ao abrir, <b>digite o valor do presente: <span data-valor-pedido></span></b>, e depois finalize com os dados do cartão.</p>
         <div class="copia"><input id="cartao-valor-txt" type="text" readonly aria-label="Valor a pagar"><button class="botao claro" type="button" id="cartao-copiar">Copiar valor</button></div>
         <a class="botao rosa" id="cartao-link" href="#" target="_blank" rel="noopener" style="width:100%">Abrir pagamento com cartão ›</a>
         <p style="margin-top:10px;font-size:.92rem">O pagamento abre em outra aba, num ambiente seguro da maquininha. O valor cai direto para a família da Isa.</p>
@@ -555,7 +559,7 @@ const CONFIG = {
     linkCartao: ""                // link de pagamento da maquininha (InfinitePay, Mercado Pago, PagBank...). Vazio = cartão desligado
   },
 
-  // Lista de presentes. valor = preço da loja + 10% (já calculado). foto = imagem embutida (data:...) ou "" para ícone.
+  // Lista de presentes. valor = preço da loja + 3% (já calculado). foto = imagem embutida (data:...) ou "" para ícone.
   // exemplo: true marca itens de demonstração (aparece o aviso "Lista de exemplo").
   presentes: [
     { id: "caixa-som", nome: "Caixa de som bluetooth", categoria: "Tecnologia", valor: 329.90, foto: "", icone: "som", exemplo: true },
@@ -933,6 +937,7 @@ $("#form-presente").addEventListener("submit", e => {
   if (!forma) return falha("As formas de pagamento ainda estão sendo configuradas. Volte em breve.");
   pedido = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nome, mensagem: $("#g-msg").value.trim(),
              itens: resumoItens(), valor: Math.round(total*100)/100, pagamento: forma };
+  document.querySelectorAll("[data-valor-pedido]").forEach(el => el.textContent = BRL(pedido.valor));
   if (forma === "pix"){
     const cod = Pix.codigo(pedido.valor, "XV" + pedido.id);
     $("#pix-valor").textContent = BRL(pedido.valor);

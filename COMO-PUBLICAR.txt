@@ -24,14 +24,14 @@ ARQUIVOS
    recebedor  -> nome do titular (até 25 letras, sem acento).
    cidade     -> cidade do titular (até 15 letras, sem acento).
    linkCartao -> link de pagamento da sua maquininha/app (InfinitePay, Mercado Pago,
-                 PagBank...). O convidado abre o link, digita o valor mostrado e paga;
+                 PagBank...). O convidado abre o link, DIGITA o valor mostrado e paga;
                  o dinheiro cai no seu app. Um presente pode ter link próprio
                  (campo linkCartao dentro do item).
    Os pagamentos vão direto para a sua conta. O painel mostra o que cada convidado
    informou ("Já paguei"); confira sempre no extrato e no app da maquininha.
 
 4) LISTA DE PRESENTES (CONFIG.presentes)
-   Cada item: nome, categoria, valor (preço da loja + 10%), foto (embutida) e ícone.
+   Cada item: nome, categoria, valor (preço da loja + 3%), foto (embutida) e ícone.
    Itens com exemplo: true são só demonstração.
 
 5) EDITAR TEXTOS
