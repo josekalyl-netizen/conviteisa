@@ -2,30 +2,38 @@ CONVITE ISA ESPÍNDOLA — como colocar no ar
 ================================
 
 ARQUIVOS
-  convite.html      -> o convite completo (logo e música já estão dentro do arquivo)
-  apps-script.gs    -> código da planilha que recebe as confirmações
+  convite.html      -> o convite completo (imagens e música já estão dentro do arquivo)
+  apps-script.gs    -> código da planilha que recebe confirmações e presentes
 
-1) MÚSICA
-   Every Breath You Take já está embutida no convite.html (campo CONFIG.musica).
-   Os navegadores só deixam tocar depois de um toque: ela começa quando o
-   convidado toca no selo para abrir as portas.
+1) ONDE HOSPEDAR (importante)
+   O link de artefato do Claude serve para VER e APROVAR o visual. Ele bloqueia o
+   envio de dados para a planilha, então confirmações e presentes não chegam lá.
+   Para os convidados, suba o convite.html numa hospedagem estática:
+     - Netlify Drop (app.netlify.com/drop): arraste o arquivo e pronto; ou
+     - GitHub Pages / Hostinger / qualquer outra.
+   O painel do responsável é o mesmo link terminado em  #painel
 
-2) CONFIRMAÇÕES (planilha Google, grátis)
-   Siga os 5 passos no topo do apps-script.gs e cole a URL /exec em
-   CONFIG.planilhaUrl dentro do convite.html.
-   A senha do painel fica SÓ no apps-script.gs (constante SENHA). Não use 2811:
-   o convite.html é público e qualquer um consegue ler o que está nele.
-   Sem a planilha, o convite funciona em "modo demonstração": as respostas ficam
-   só no aparelho de quem respondeu (serve para testar, não para a festa).
+2) CONFIRMAÇÕES E PRESENTES (planilha Google, grátis)
+   Siga os passos no topo do apps-script.gs e cole a URL /exec em
+   CONFIG.planilhaUrl no convite.html. As confirmações vão para a 1ª aba e os
+   presentes para a aba "Presentes" (criada sozinha).
+   A senha do painel fica SÓ no apps-script.gs (constante SENHA).
 
-3) EDITAR TEXTOS
-   Tudo fica no bloco CONFIG no fim do convite.html: nome, texto, horário,
-   data da festa, prazo do RSVP, local, link do mapa, lista de presentes.
-   As datas que aparecem no convite (dia, mês, prazo, "Nos vemos dia...")
-   saem automaticamente de CONFIG.dataFesta e CONFIG.prazoRsvp.
+3) PAGAMENTOS DOS PRESENTES (CONFIG.pagamento)
+   chavePix   -> sua chave Pix. O convite gera QR Code e "copia e cola" já com o valor.
+   recebedor  -> nome do titular (até 25 letras, sem acento).
+   cidade     -> cidade do titular (até 15 letras, sem acento).
+   linkCartao -> link de pagamento da sua maquininha/app (InfinitePay, Mercado Pago,
+                 PagBank...). O convidado abre o link, digita o valor mostrado e paga;
+                 o dinheiro cai no seu app. Um presente pode ter link próprio
+                 (campo linkCartao dentro do item).
+   Os pagamentos vão direto para a sua conta. O painel mostra o que cada convidado
+   informou ("Já paguei"); confira sempre no extrato e no app da maquininha.
 
-4) PUBLICAR
-   Suba o convite.html em qualquer hospedagem estática (artefato do Claude,
-   Netlify Drop, GitHub Pages, Hostinger...). O link do convidado é o arquivo;
-   o painel do responsável é o mesmo link terminado em  #painel
-   Ex.: https://seusite.com/convite.html#painel
+4) LISTA DE PRESENTES (CONFIG.presentes)
+   Cada item: nome, categoria, valor (preço da loja + 10%), foto (embutida) e ícone.
+   Itens com exemplo: true são só demonstração.
+
+5) EDITAR TEXTOS
+   Tudo fica no bloco CONFIG no fim do convite.html: nome, frases, horário,
+   data da festa, prazo do RSVP, local, link do mapa.
