@@ -1,0 +1,27 @@
+CONVITE ISA ESPÍNDOLA — como colocar no ar
+================================
+
+ARQUIVOS
+  convite.html      -> o convite (já com a imagem dentro)
+  musica.mp3        -> Every Breath You Take (já incluída, 128 kbps)
+  apps-script.gs    -> código da planilha que recebe as confirmações
+
+1) MÚSICA
+   A música já está na pasta como "musica.mp3". Para trocar, substitua o arquivo com o mesmo nome.
+   Sem o arquivo, o convite toca uma trilha synth de teste gerada pelo próprio navegador.
+
+2) CONFIRMAÇÕES (planilha Google, grátis)
+   Siga os 5 passos no topo do apps-script.gs e cole a URL /exec em
+   CONFIG.planilhaUrl dentro do convite.html. Use a mesma senha nos dois lugares.
+   Sem a planilha, o convite funciona em "modo demonstração": as respostas ficam
+   só no aparelho de quem respondeu (serve para testar, não para a festa).
+
+3) EDITAR TEXTOS
+   Tudo fica no bloco CONFIG no fim do convite.html: nome, "15 anos", horário,
+   local, link do mapa, lista de presentes, senha.
+
+4) PUBLICAR
+   Suba convite.html + musica.mp3 em qualquer hospedagem estática
+   (Netlify Drop, GitHub Pages, Hostinger...). O link do convidado é o arquivo;
+   o painel do responsável é o mesmo link terminado em  #painel
+   Ex.: https://seusite.com/convite.html#painel   (senha padrão: 2811)
