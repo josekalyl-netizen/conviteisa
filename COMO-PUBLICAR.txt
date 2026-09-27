@@ -2,26 +2,30 @@ CONVITE ISA ESPÍNDOLA — como colocar no ar
 ================================
 
 ARQUIVOS
-  convite.html      -> o convite (já com a imagem dentro)
-  musica.mp3        -> Every Breath You Take (já incluída, 128 kbps)
+  convite.html      -> o convite completo (logo e música já estão dentro do arquivo)
   apps-script.gs    -> código da planilha que recebe as confirmações
 
 1) MÚSICA
-   A música já está na pasta como "musica.mp3". Para trocar, substitua o arquivo com o mesmo nome.
-   Sem o arquivo, o convite toca uma trilha synth de teste gerada pelo próprio navegador.
+   Every Breath You Take já está embutida no convite.html (campo CONFIG.musica).
+   Os navegadores só deixam tocar depois de um toque: ela começa quando o
+   convidado toca no selo para abrir as portas.
 
 2) CONFIRMAÇÕES (planilha Google, grátis)
    Siga os 5 passos no topo do apps-script.gs e cole a URL /exec em
-   CONFIG.planilhaUrl dentro do convite.html. Use a mesma senha nos dois lugares.
+   CONFIG.planilhaUrl dentro do convite.html.
+   A senha do painel fica SÓ no apps-script.gs (constante SENHA). Não use 2811:
+   o convite.html é público e qualquer um consegue ler o que está nele.
    Sem a planilha, o convite funciona em "modo demonstração": as respostas ficam
    só no aparelho de quem respondeu (serve para testar, não para a festa).
 
 3) EDITAR TEXTOS
-   Tudo fica no bloco CONFIG no fim do convite.html: nome, "15 anos", horário,
-   local, link do mapa, lista de presentes, senha.
+   Tudo fica no bloco CONFIG no fim do convite.html: nome, texto, horário,
+   data da festa, prazo do RSVP, local, link do mapa, lista de presentes.
+   As datas que aparecem no convite (dia, mês, prazo, "Nos vemos dia...")
+   saem automaticamente de CONFIG.dataFesta e CONFIG.prazoRsvp.
 
 4) PUBLICAR
-   Suba convite.html + musica.mp3 em qualquer hospedagem estática
-   (Netlify Drop, GitHub Pages, Hostinger...). O link do convidado é o arquivo;
+   Suba o convite.html em qualquer hospedagem estática (artefato do Claude,
+   Netlify Drop, GitHub Pages, Hostinger...). O link do convidado é o arquivo;
    o painel do responsável é o mesmo link terminado em  #painel
-   Ex.: https://seusite.com/convite.html#painel   (senha padrão: 2811)
+   Ex.: https://seusite.com/convite.html#painel
