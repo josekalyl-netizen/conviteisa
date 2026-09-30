@@ -49,6 +49,11 @@ function celula_(v) {
   const s = String(v == null ? '' : v).slice(0, 500);
   return /^[=+\-@]/.test(s) ? "'" + s : s;
 }
+// Evita linha duplicada se o convite reenviar a mesma resposta (mesmo id).
+function jaExiste_(sh, id) {
+  if (!id || sh.getLastRow() < 2) return false;
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().some(l => String(l[0]) === String(id));
+}
 function avisar_(assunto, linhas) {
   if (!EMAIL_AVISO) return;
   try { MailApp.sendEmail(EMAIL_AVISO, assunto, linhas.filter(Boolean).join('\n') + '\n\nPlanilha: ' + SpreadsheetApp.getActiveSpreadsheet().getUrl()); } catch (e) {}
@@ -63,6 +68,7 @@ function doPost(e) {
     if (d.tipo === 'presente') {
       d.valor = Math.max(0, Math.round((Number(d.valor) || 0) * 100) / 100);
       d.pagamento = d.pagamento === 'cartao' ? 'cartao' : 'pix';
+      if (jaExiste_(abaPresentes_(), d.id)) return json_({ ok: true, repetido: true });
       abaPresentes_().appendRow(CAMPOS_PRESENTE.map(c => c === 'valor' ? d.valor : celula_(d[c])));
       avisar_('🎁 Presente: ' + d.nome + ' (R$ ' + d.valor.toFixed(2).replace('.', ',') + ')',
         ['Quem: ' + d.nome, 'Itens: ' + (d.itens || ''), 'Pagamento: ' + (d.pagamento === 'cartao' ? 'cartão' : 'Pix'), d.mensagem ? 'Recado: ' + d.mensagem : '',
@@ -72,6 +78,7 @@ function doPost(e) {
     d.presenca = d.presenca === 'sim' ? 'sim' : 'nao';
     d.acompanhantes = Math.max(0, Math.min(4, Number(d.acompanhantes) || 0));
     d.pessoas = d.presenca === 'sim' ? 1 + d.acompanhantes : 0;
+    if (jaExiste_(aba_(), d.id)) return json_({ ok: true, repetido: true });
     aba_().appendRow(CAMPOS.map(c => celula_(d[c])));
     avisar_((d.presenca === 'sim' ? '✅ Vai: ' : '❌ Não vai: ') + d.nome + (d.presenca === 'sim' ? ' (' + d.pessoas + ' pessoa' + (d.pessoas > 1 ? 's' : '') + ')' : ''),
       ['Nome: ' + d.nome, 'WhatsApp: ' + (d.telefone || ''), d.nomesAcompanhantes ? 'Acompanhantes: ' + d.nomesAcompanhantes : '', d.mensagem ? 'Recado: ' + d.mensagem : '']);

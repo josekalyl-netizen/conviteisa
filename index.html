@@ -887,11 +887,15 @@ const Store = {
   modoPlanilha: !!CONFIG.planilhaUrl,
   async enviar(r, k = CHAVE){
     if (this.modoPlanilha){
-      await fetch(CONFIG.planilhaUrl, { method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(r) });
+      try { await this.postar(r); }
+      catch { Fila.guardar(r); }   // sem internet agora: guarda no aparelho e reenvia sozinho depois
       return;
     }
     const l = Local.ler(k); l.push(r);
     if (!Local.gravar(l, k)) throw new Error("armazenamento indisponível");
+  },
+  postar(r){
+    return fetch(CONFIG.planilhaUrl, { method:"POST", mode:"no-cors", keepalive:true, headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(r) });
   },
   enviarPresente(r){ return this.enviar({ tipo:"presente", ...r }, CHAVE_PRES); },
   async listar(senha){
@@ -905,6 +909,23 @@ const Store = {
   },
   async remover(id){ Local.gravar(Local.ler().filter(r => r.id !== id)); }
 };
+
+// Fila de reenvio: nada se perde se a conexão do convidado falhar no envio.
+const Fila = {
+  K: "convite-isa-pendentes",
+  ler(){ try { return JSON.parse(localStorage.getItem(this.K)) || []; } catch { return []; } },
+  gravar(l){ try { localStorage.setItem(this.K, JSON.stringify(l)); } catch {} },
+  guardar(r){ const l = this.ler(); if (!l.some(x => x.id === r.id)) l.push(r); this.gravar(l); },
+  async reenviar(){
+    if (!Store.modoPlanilha) return;
+    const l = this.ler(); if (!l.length) return;
+    const resta = [];
+    for (const r of l){ try { await Store.postar(r); } catch { resta.push(r); } }
+    this.gravar(resta);
+  }
+};
+Fila.reenviar();
+window.addEventListener("online", () => Fila.reenviar());
 
 /* =====================================================================
    LISTA DE PRESENTES — catálogo, carrinho, Pix (QR + copia e cola) e cartão (link)
