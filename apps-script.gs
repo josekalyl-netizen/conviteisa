@@ -1,34 +1,44 @@
 /**
- * Planilha de confirmações do convite.
- * 1. Crie uma planilha no Google Sheets.
- * 2. Extensões > Apps Script > cole este código > Salvar.
- * 3. Troque a SENHA abaixo por uma senha só sua (é ela que protege a lista).
- *    Ela NÃO vai no convite.html — quem confere a senha é este script.
- * 4. Implantar > Nova implantação > tipo "App da Web"
- *    Executar como: Eu | Quem pode acessar: Qualquer pessoa > Implantar.
- * 5. Copie a URL que termina em /exec e cole em CONFIG.planilhaUrl no convite.html.
- *    (Se editar este código depois: Implantar > Gerenciar implantações > editar > Nova versão.)
+ * Planilha do convite da Isa — recebe confirmações de presença e presentes.
+ *
+ * COMO LIGAR (uma vez só, uns 5 minutos):
+ * 1. Crie uma planilha nova no Google Sheets (sheets.new).
+ * 2. Menu Extensões > Apps Script. Apague o que estiver lá, cole ESTE código inteiro e clique em Salvar.
+ * 3. Troque a SENHA abaixo por uma senha só sua (é ela que abre o painel).
+ *    Em EMAIL_AVISO coloque o e-mail que deve receber um aviso a cada confirmação (ou deixe '').
+ * 4. Clique em Implantar > Nova implantação > engrenagem > "App da Web".
+ *    Executar como: Eu | Quem pode acessar: Qualquer pessoa > Implantar > Autorizar acesso
+ *    (se aparecer "O Google não verificou este app": Avançado > Acessar... > Permitir).
+ * 5. Copie a URL que termina em /exec e envie para quem cuida do convite
+ *    (ela vai em CONFIG.planilhaUrl no index.html).
+ *
+ * Se editar este código depois: Implantar > Gerenciar implantações > lápis > Versão: Nova versão > Implantar.
+ * A URL continua a mesma.
  */
 const SENHA = 'troque-esta-senha';
+const EMAIL_AVISO = '';   // ex.: 'familia@gmail.com' — recebe um e-mail a cada confirmação e presente
+
 const CAMPOS = ['id','enviadoEm','nome','telefone','presenca','pessoas','acompanhantes','nomesAcompanhantes','presente','mensagem'];
 const CAMPOS_PRESENTE = ['id','enviadoEm','nome','itens','valor','pagamento','mensagem'];
 
 // 1ª aba: confirmações de presença | aba "Presentes": presentes informados pelos convidados
 function aba_() {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-  if (sh.getLastRow() === 0) sh.appendRow(CAMPOS);
+  const pl = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = pl.getSheetByName('Confirmações') || pl.getSheets()[0];
+  if (sh.getLastRow() === 0) { sh.appendRow(CAMPOS); sh.setFrozenRows(1); sh.getRange(1, 1, 1, CAMPOS.length).setFontWeight('bold'); }
+  if (sh.getName() !== 'Confirmações' && !pl.getSheetByName('Confirmações')) sh.setName('Confirmações');
   return sh;
 }
 function abaPresentes_() {
   const pl = SpreadsheetApp.getActiveSpreadsheet();
   const sh = pl.getSheetByName('Presentes') || pl.insertSheet('Presentes');
-  if (sh.getLastRow() === 0) sh.appendRow(CAMPOS_PRESENTE);
+  if (sh.getLastRow() === 0) { sh.appendRow(CAMPOS_PRESENTE); sh.setFrozenRows(1); sh.getRange(1, 1, 1, CAMPOS_PRESENTE.length).setFontWeight('bold'); }
   return sh;
 }
 function ler_(sh) {
   const v = sh.getDataRange().getValues();
   const cab = v.shift();
-  return v.map(l => Object.fromEntries(cab.map((c, i) => [c, l[i] instanceof Date ? l[i].toISOString() : l[i]])));
+  return v.filter(l => l.some(c => c !== '')).map(l => Object.fromEntries(cab.map((c, i) => [c, l[i] instanceof Date ? l[i].toISOString() : l[i]])));
 }
 function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
@@ -38,6 +48,10 @@ function json_(o) {
 function celula_(v) {
   const s = String(v == null ? '' : v).slice(0, 500);
   return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+function avisar_(assunto, linhas) {
+  if (!EMAIL_AVISO) return;
+  try { MailApp.sendEmail(EMAIL_AVISO, assunto, linhas.filter(Boolean).join('\n') + '\n\nPlanilha: ' + SpreadsheetApp.getActiveSpreadsheet().getUrl()); } catch (e) {}
 }
 
 function doPost(e) {
@@ -50,17 +64,30 @@ function doPost(e) {
       d.valor = Math.max(0, Math.round((Number(d.valor) || 0) * 100) / 100);
       d.pagamento = d.pagamento === 'cartao' ? 'cartao' : 'pix';
       abaPresentes_().appendRow(CAMPOS_PRESENTE.map(c => c === 'valor' ? d.valor : celula_(d[c])));
+      avisar_('🎁 Presente: ' + d.nome + ' (R$ ' + d.valor.toFixed(2).replace('.', ',') + ')',
+        ['Quem: ' + d.nome, 'Itens: ' + (d.itens || ''), 'Pagamento: ' + (d.pagamento === 'cartao' ? 'cartão' : 'Pix'), d.mensagem ? 'Recado: ' + d.mensagem : '',
+         'Confira no extrato do banco / app do cartão.']);
       return json_({ ok: true });
     }
     d.presenca = d.presenca === 'sim' ? 'sim' : 'nao';
     d.acompanhantes = Math.max(0, Math.min(4, Number(d.acompanhantes) || 0));
     d.pessoas = d.presenca === 'sim' ? 1 + d.acompanhantes : 0;
     aba_().appendRow(CAMPOS.map(c => celula_(d[c])));
+    avisar_((d.presenca === 'sim' ? '✅ Vai: ' : '❌ Não vai: ') + d.nome + (d.presenca === 'sim' ? ' (' + d.pessoas + ' pessoa' + (d.pessoas > 1 ? 's' : '') + ')' : ''),
+      ['Nome: ' + d.nome, 'WhatsApp: ' + (d.telefone || ''), d.nomesAcompanhantes ? 'Acompanhantes: ' + d.nomesAcompanhantes : '', d.mensagem ? 'Recado: ' + d.mensagem : '']);
     return json_({ ok: true });
   } finally { lock.releaseLock(); }
 }
 
 function doGet(e) {
-  if ((e.parameter.senha || '') !== SENHA) return json_({ ok: false, erro: 'senha' });
-  return json_({ ok: true, respostas: ler_(aba_()), presentes: ler_(abaPresentes_()) });
+  const p = (e && e.parameter) || {};
+  if (p.acao === 'ping') return json_({ ok: true, ping: true });
+  if ((p.senha || '') !== SENHA) return json_({ ok: false, erro: 'senha' });
+  return json_({ ok: true, respostas: ler_(aba_()), presentes: ler_(abaPresentes_()), planilha: SpreadsheetApp.getActiveSpreadsheet().getUrl() });
+}
+
+// Opcional: rode esta função uma vez (botão ▶ Executar) para criar as abas e testar o e-mail.
+function testar() {
+  aba_(); abaPresentes_();
+  avisar_('Teste do convite da Isa', ['Se você recebeu este e-mail, os avisos estão funcionando.']);
 }

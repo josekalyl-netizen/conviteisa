@@ -1,39 +1,46 @@
-CONVITE ISA ESPÍNDOLA — como colocar no ar
-================================
+CONVITE ISA ESPÍNDOLA — como colocar no ar (grátis)
+====================================================
 
 ARQUIVOS
-  convite.html      -> o convite completo (imagens e música já estão dentro do arquivo)
-  apps-script.gs    -> código da planilha que recebe confirmações e presentes
+  index.html      -> o convite completo (imagens, música e lista de presentes já estão dentro)
+  apps-script.gs  -> código da planilha Google que recebe confirmações e presentes
 
-1) ONDE HOSPEDAR (importante)
-   O link de artefato do Claude serve para VER e APROVAR o visual. Ele bloqueia o
-   envio de dados para a planilha, então confirmações e presentes não chegam lá.
-   Para os convidados, suba o convite.html numa hospedagem estática:
-     - Netlify Drop (app.netlify.com/drop): arraste o arquivo e pronto; ou
-     - GitHub Pages / Hostinger / qualquer outra.
-   O painel do responsável é o mesmo link terminado em  #painel
+PASSO 1 — PLANILHA (recebe as confirmações e os presentes)
+  1. Entre em sheets.new com a conta Google da família e dê um nome (ex.: "Convite Isa").
+  2. Menu Extensões > Apps Script. Apague o que estiver lá e cole TODO o apps-script.gs.
+  3. No topo do código:
+       SENHA       = a senha do painel (escolha uma só de vocês)
+       EMAIL_AVISO = e-mail que recebe aviso a cada confirmação/presente (ou deixe '')
+     Clique em Salvar (ícone de disquete).
+  4. Implantar > Nova implantação > engrenagem > "App da Web"
+       Executar como: Eu     Quem pode acessar: Qualquer pessoa
+     Implantar > Autorizar acesso > escolha a conta.
+     Se aparecer "O Google não verificou este app": Avançado > Acessar (não seguro) > Permitir.
+     (É o seu próprio script; o aviso é padrão do Google.)
+  5. Copie a URL que termina em /exec. Ela vai em CONFIG.planilhaUrl no index.html.
 
-2) CONFIRMAÇÕES E PRESENTES (planilha Google, grátis)
-   Siga os passos no topo do apps-script.gs e cole a URL /exec em
-   CONFIG.planilhaUrl no convite.html. As confirmações vão para a 1ª aba e os
-   presentes para a aba "Presentes" (criada sozinha).
-   A senha do painel fica SÓ no apps-script.gs (constante SENHA).
+PASSO 2 — SITE GRÁTIS (GitHub Pages, sem prazo de validade)
+  1. github.com/josekalyl-netizen/conviteisa > Settings > Pages.
+  2. Em "Build and deployment": Source = Deploy from a branch
+     Branch = claude/fervent-franklin-d4rrqf   pasta = / (root)   > Save.
+  3. Em 1 a 2 minutos o convite fica em:
+       https://josekalyl-netizen.github.io/conviteisa/
+     Esse é o link para mandar aos convidados.
 
-3) PAGAMENTOS DOS PRESENTES (CONFIG.pagamento)
-   chavePix   -> sua chave Pix. O convite gera QR Code e "copia e cola" já com o valor.
-   recebedor  -> nome do titular (até 25 letras, sem acento).
-   cidade     -> cidade do titular (até 15 letras, sem acento).
-   linkCartao -> link de pagamento da sua maquininha/app (InfinitePay, Mercado Pago,
-                 PagBank...). O convidado abre o link, DIGITA o valor mostrado e paga;
-                 o dinheiro cai no seu app. Um presente pode ter link próprio
-                 (campo linkCartao dentro do item).
-   Os pagamentos vão direto para a sua conta. O painel mostra o que cada convidado
-   informou ("Já paguei"); confira sempre no extrato e no app da maquininha.
+PAINEL DA FAMÍLIA (ver quem confirmou)
+  https://josekalyl-netizen.github.io/conviteisa/#painel
+  (ou o link "Área do responsável" no rodapé do convite)
+  - Entra com a SENHA do apps-script.gs; o aparelho lembra a senha (botão Sair apaga).
+  - Mostra pessoas confirmadas, acompanhantes, quem não vai, presentes e recados.
+  - Atualiza sozinho a cada minuto; WhatsApp de cada convidado é clicável.
+  - Botão "Abrir planilha" abre a planilha Google (dá para ver também pelo app Planilhas).
 
-4) LISTA DE PRESENTES (CONFIG.presentes)
-   Cada item: nome, categoria, valor (preço da loja + 3%), foto (embutida) e ícone.
-   Itens com exemplo: true são só demonstração.
+IMPORTANTE
+  - O link do Claude (claude.ai/artifact/...) serve só para VER o visual.
+    Ele não envia dados para a planilha — não mande esse link aos convidados.
+  - Pagamentos vão direto para o Pix e para o link do cartão (Asaas).
+    O painel mostra o que cada convidado informou em "Já paguei"; confira no extrato.
 
-5) EDITAR TEXTOS
-   Tudo fica no bloco CONFIG no fim do convite.html: nome, frases, horário,
-   data da festa, prazo do RSVP, local, link do mapa.
+EDITAR
+  Tudo fica no bloco CONFIG perto do fim do index.html: textos, data, local,
+  prazo do RSVP, Pix, link do cartão e lista de presentes (valor = loja + 3%).

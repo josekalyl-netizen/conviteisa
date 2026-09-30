@@ -196,6 +196,10 @@ textarea{min-height:84px;resize:vertical}
 .numero b{display:block;font-family:var(--display);font-size:2.4rem;line-height:1;font-weight:700;color:var(--teal);font-variant-numeric:tabular-nums}
 .numero.destaque b{color:var(--tiffany-forte)}
 .numero span{font-size:.85rem;font-weight:500}
+.status-conexao{margin:10px 0 0;font-size:.88rem;color:var(--teal);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status-conexao i{width:9px;height:9px;border-radius:50%;background:#2fb36b;box-shadow:0 0 0 3px rgba(47,179,107,.2);flex:none}
+.status-conexao.off i{background:var(--fucsia-forte);box-shadow:0 0 0 3px rgba(196,58,128,.2)}
+#p-linhas a.zap{color:var(--tiffany-forte);font-weight:600;white-space:nowrap}
 .ferramentas{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
 .ferramentas input{max-width:260px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
@@ -525,14 +529,18 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
       <div><p class="chamada">Confirmações de presença</p><h1>Painel da festa</h1></div>
       <div class="ferramentas" style="margin:0">
         <button class="botao claro" type="button" id="p-atualizar">Atualizar</button>
+        <a class="botao claro" id="p-planilha" href="#" target="_blank" rel="noopener" hidden>Abrir planilha</a>
         <button class="botao rosa" type="button" id="p-copiar">Copiar lista (CSV)</button>
         <a class="botao claro" href="#convite">Ver convite</a>
+        <button class="botao claro" type="button" id="p-sair">Sair</button>
       </div>
     </div>
+    <p class="status-conexao" id="p-status"></p>
     <p class="aviso" id="p-modo" hidden></p>
     <div class="numeros">
       <div class="numero destaque"><b id="n-pessoas">0</b><span>pessoas confirmadas</span></div>
       <div class="numero"><b id="n-sim">0</b><span>respostas “vou”</span></div>
+      <div class="numero"><b id="n-acomp">0</b><span>acompanhantes</span></div>
       <div class="numero"><b id="n-nao">0</b><span>não vão</span></div>
       <div class="numero"><b id="n-prazo">0</b><span id="n-prazo-l">dias p/ fim do RSVP</span></div>
     </div>
@@ -890,7 +898,7 @@ const Store = {
     if (this.modoPlanilha){
       const resp = await fetch(CONFIG.planilhaUrl + "?acao=listar&senha=" + encodeURIComponent(senha)); const j = await resp.json();
       if (!j.ok) throw Object.assign(new Error(j.erro || "falha"), { senha: j.erro === "senha" });
-      return { respostas: j.respostas || [], presentes: j.presentes || [] };
+      return { respostas: j.respostas || [], presentes: j.presentes || [], planilha: j.planilha || "" };
     }
     if (senha !== CONFIG.senhaPainel) throw Object.assign(new Error("senha"), { senha:true });
     return { respostas: Local.ler(), presentes: Local.ler(CHAVE_PRES) };
@@ -1127,7 +1135,7 @@ form.addEventListener("submit", async e => {
 $("#f-novo").addEventListener("click", () => { form.reset(); sincronizarPresenca(); form.hidden = false; $("#f-ok").hidden = true; form.nome.focus(); });
 
 /* =====================================================================
-   PAINEL DO RESPONSÁVEL — abre em  convite.html#painel
+   PAINEL DO RESPONSÁVEL — abre em  index.html#painel
    ===================================================================== */
 let senhaAtual = null, respostas = [], presentesRecebidos = [], filtro = "todos";
 function mostrarVisao(){
@@ -1139,16 +1147,38 @@ function mostrarVisao(){
     if (!senhaAtual) $("#p-pin").focus();
   }
 }
-window.addEventListener("hashchange", mostrarVisao);
+window.addEventListener("hashchange", () => { mostrarVisao(); entrarSalvo(); });
 mostrarVisao();
+// neste aparelho, o painel lembra a senha: abre direto nas próximas vezes
+async function entrarSalvo(){
+  if (location.hash !== "#painel" || senhaAtual) return;
+  let s = null; try { s = localStorage.getItem("convite-isa-painel"); } catch {}
+  if (!s) return;
+  try { aplicar(await Store.listar(s)); senhaAtual = s; mostrarVisao(); desenhar(); iniciarAuto(); }
+  catch (x){ if (x.senha) try { localStorage.removeItem("convite-isa-painel"); } catch {} }
+}
 
 $("#form-pin").addEventListener("submit", async e => {
   e.preventDefault();
   const senha = $("#p-pin").value, erro = $("#p-erro"); erro.hidden = true;
-  try { ({ respostas, presentes: presentesRecebidos } = await Store.listar(senha)); senhaAtual = senha; mostrarVisao(); desenhar(); }
-  catch (x){ erro.textContent = x.senha ? "Senha incorreta." : "Não foi possível ler as respostas. Confira o link da planilha."; erro.hidden = false; }
+  try { aplicar(await Store.listar(senha)); senhaAtual = senha; try { localStorage.setItem("convite-isa-painel", senha); } catch {} mostrarVisao(); desenhar(); iniciarAuto(); }
+  catch (x){ erro.textContent = x.senha ? "Senha incorreta." : "Não foi possível ler as respostas agora. Verifique a internet e tente de novo."; erro.hidden = false; }
 });
-async function recarregar(){ try { ({ respostas, presentes: presentesRecebidos } = await Store.listar(senhaAtual)); desenhar(); } catch {} }
+let ultimaLeitura = null, falhaLeitura = false, auto = null;
+function aplicar(d){
+  respostas = d.respostas; presentesRecebidos = d.presentes; ultimaLeitura = new Date(); falhaLeitura = false;
+  const a = $("#p-planilha"); if (d.planilha){ a.href = d.planilha; a.hidden = false; }
+}
+async function recarregar(){
+  const b = $("#p-atualizar"); b.disabled = true; b.textContent = "Atualizando…";
+  try { aplicar(await Store.listar(senhaAtual)); } catch { falhaLeitura = true; }
+  b.disabled = false; b.textContent = "Atualizar"; desenhar();
+}
+// com o painel aberto, busca novas confirmações sozinho a cada 45 s
+function iniciarAuto(){ clearInterval(auto); auto = setInterval(() => { if (!document.hidden && location.hash === "#painel" && senhaAtual) recarregar(); }, 45000); }
+document.addEventListener("visibilitychange", () => { if (!document.hidden && location.hash === "#painel" && senhaAtual) recarregar(); });
+$("#p-sair").addEventListener("click", () => { try { localStorage.removeItem("convite-isa-painel"); } catch {} senhaAtual = null; clearInterval(auto); $("#p-pin").value = ""; mostrarVisao(); });
+entrarSalvo();
 $("#p-atualizar").addEventListener("click", recarregar);
 $("#p-busca").addEventListener("input", desenhar);
 $$(".chip").forEach(c => c.addEventListener("click", () => { filtro = c.dataset.filtro; $$(".chip").forEach(x => x.setAttribute("aria-pressed", x === c)); desenhar(); }));
@@ -1156,7 +1186,14 @@ $$(".chip").forEach(c => c.addEventListener("click", () => { filtro = c.dataset.
 function desenhar(){
   const modo = $("#p-modo");
   modo.hidden = Store.modoPlanilha;
-  modo.innerHTML = "<b>Modo demonstração:</b> as respostas ficam salvas só neste aparelho/navegador. Para receber as confirmações de todos os convidados, ligue a planilha Google (veja o arquivo <i>COMO-PUBLICAR.txt</i>).";
+  modo.innerHTML = "<b>Modo demonstração:</b> este convite ainda não está ligado à planilha, então aqui só aparecem as respostas feitas <u>neste aparelho</u>. Depois de ligar a planilha e publicar o convite no endereço oficial, todas as confirmações aparecem aqui e na planilha.";
+  const st = $("#p-status"), hora = ultimaLeitura ? ultimaLeitura.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
+  st.className = "status-conexao" + (falhaLeitura || !Store.modoPlanilha ? " off" : "");
+  st.innerHTML = Store.modoPlanilha
+    ? (falhaLeitura ? `<i></i>Sem conexão com a planilha agora — mostrando a última leitura (${hora}).` : `<i></i>Conectado à planilha · atualizado às ${hora} · atualiza sozinho a cada minuto`)
+    : `<i></i>Não conectado à planilha`;
+  const acomp = respostas.filter(r => r.presenca === "sim").reduce((s,r) => s + Math.max(0, Number(r.pessoas||1) - 1), 0);
+  $("#n-acomp").textContent = acomp;
   const sim = respostas.filter(r => r.presenca === "sim");
   $("#n-pessoas").textContent = sim.reduce((s,r) => s + Number(r.pessoas||1), 0);
   $("#n-sim").textContent = sim.length;
@@ -1187,7 +1224,7 @@ function desenhar(){
       <td><span class="status ${r.presenca==="sim"?"sim":"nao"}">${r.presenca==="sim"?"Vai":"Não vai"}</span></td>
       <td>${r.presenca==="sim" ? esc(r.pessoas) : "—"}</td>
       <td>${esc(r.nomesAcompanhantes||"—")}</td>
-      <td>${esc(r.telefone||"—")}</td>
+      <td>${zap(r.telefone)}</td>
       <td>${esc(r.presente||"—")}</td>
       <td>${esc(r.mensagem||"—")}</td>
       <td>${esc(dataBR(r.enviadoEm))}</td>
@@ -1199,6 +1236,12 @@ $("#p-linhas").addEventListener("click", async e => {
   if (b.dataset.confirma !== "1"){ b.dataset.confirma = "1"; b.textContent = "confirmar?"; return; }
   await Store.remover(b.dataset.id); recarregar();
 });
+function zap(t){
+  const d = String(t||"").replace(/\D/g,"");
+  if (d.length < 10) return esc(t||"—");
+  const n = d.length <= 11 ? "55" + d : d;
+  return `<a class="zap" href="https://wa.me/${n}" target="_blank" rel="noopener">${esc(t)}</a>`;
+}
 function csv(){
   const cab = ["Nome","Resposta","Pessoas","Acompanhantes","WhatsApp","Presente","Recado","Enviado em"];
   const q = v => `"${String(v??"").replace(/"/g,'""')}"`;
