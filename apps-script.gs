@@ -54,6 +54,19 @@ function jaExiste_(sh, id) {
   if (!id || sh.getLastRow() < 2) return false;
   return sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().some(l => String(l[0]) === String(id));
 }
+// Apaga a linha com esse id (usado pelo botão "apagar" do painel, protegido pela senha).
+function apagar_(sh, id) {
+  if (!id || sh.getLastRow() < 2) return { ok: false, erro: 'id' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (String(ids[i][0]) === String(id)) { sh.deleteRow(i + 2); return { ok: true }; }
+    }
+    return { ok: false, erro: 'nao-encontrado' };
+  } finally { lock.releaseLock(); }
+}
 function avisar_(assunto, linhas) {
   if (!EMAIL_AVISO) return;
   try { MailApp.sendEmail(EMAIL_AVISO, assunto, linhas.filter(Boolean).join('\n') + '\n\nPlanilha: ' + SpreadsheetApp.getActiveSpreadsheet().getUrl()); } catch (e) {}
@@ -90,6 +103,7 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   if (p.acao === 'ping') return json_({ ok: true, ping: true });
   if ((p.senha || '') !== SENHA) return json_({ ok: false, erro: 'senha' });
+  if (p.acao === 'apagar') return json_(apagar_(p.tipo === 'presente' ? abaPresentes_() : aba_(), p.id));
   return json_({ ok: true, respostas: ler_(aba_()), presentes: ler_(abaPresentes_()), planilha: SpreadsheetApp.getActiveSpreadsheet().getUrl() });
 }
 

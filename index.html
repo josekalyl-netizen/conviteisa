@@ -907,7 +907,16 @@ const Store = {
     if (senha !== CONFIG.senhaPainel) throw Object.assign(new Error("senha"), { senha:true });
     return { respostas: Local.ler(), presentes: Local.ler(CHAVE_PRES) };
   },
-  async remover(id){ Local.gravar(Local.ler().filter(r => r.id !== id)); }
+  async remover(id, tipo, senha){
+    if (this.modoPlanilha){
+      const u = CONFIG.planilhaUrl + "?acao=apagar&tipo=" + (tipo === "presente" ? "presente" : "rsvp") + "&id=" + encodeURIComponent(id) + "&senha=" + encodeURIComponent(senha);
+      const j = await (await fetch(u)).json();
+      if (!j.ok && j.erro !== "nao-encontrado") throw new Error(j.erro || "falha");
+      return;
+    }
+    const k = tipo === "presente" ? CHAVE_PRES : CHAVE;
+    Local.gravar(Local.ler(k).filter(r => r.id !== id), k);
+  }
 };
 
 // Fila de reenvio: nada se perde se a conexão do convidado falhar no envio.
@@ -1233,7 +1242,8 @@ function desenhar(){
   $("#p-presentes").innerHTML = pres.length ? pres.map(([n,q]) => `<span>${esc(n)} · <b>${q}</b></span>`).join("") : "<span>Nenhum presente ainda</span>";
   $("#p-lista-presentes").innerHTML = [...presentesRecebidos].sort((a,b) => String(b.enviadoEm).localeCompare(String(a.enviadoEm))).map(g => `
     <div class="p-presente"><span><b>${esc(g.nome)}</b> · ${g.pagamento === "cartao" ? "cartão" : "Pix"} · ${esc(dataBR(g.enviadoEm))}</span><span class="v">${BRL(Number(g.valor||0))}</span>
-      <span class="m">${esc(g.itens)}${g.mensagem ? ` — “${esc(g.mensagem)}”` : ""}</span></div>`).join("");
+      <span class="m">${esc(g.itens)}${g.mensagem ? ` — “${esc(g.mensagem)}”` : ""}</span>
+      <span class="m"><button class="remover" data-id="${esc(g.id)}" data-tipo="presente">apagar</button></span></div>`).join("");
   const q = $("#p-busca").value.trim().toLowerCase();
   const linhas = respostas
     .filter(r => filtro === "todos" || r.presenca === filtro)
@@ -1249,14 +1259,27 @@ function desenhar(){
       <td>${esc(r.presente||"—")}</td>
       <td>${esc(r.mensagem||"—")}</td>
       <td>${esc(dataBR(r.enviadoEm))}</td>
-      <td>${Store.modoPlanilha ? "" : `<button class="remover" data-id="${esc(r.id)}">remover</button>`}</td>
+      <td><button class="remover" data-id="${esc(r.id)}" data-tipo="rsvp">apagar</button></td>
     </tr>`).join("") : `<tr><td colspan="9" class="vazio">Nenhuma resposta ${respostas.length ? "neste filtro" : "ainda"}.</td></tr>`;
 }
-$("#p-linhas").addEventListener("click", async e => {
+// "apagar" pede um segundo toque ("tem certeza?") e remove a linha da planilha
+async function cliqueApagar(e){
   const b = e.target.closest(".remover"); if (!b) return;
-  if (b.dataset.confirma !== "1"){ b.dataset.confirma = "1"; b.textContent = "confirmar?"; return; }
-  await Store.remover(b.dataset.id); recarregar();
-});
+  if (b.dataset.confirma !== "1"){
+    b.dataset.confirma = "1"; b.textContent = "tem certeza? toque de novo";
+    setTimeout(() => { if (b.isConnected && b.dataset.confirma === "1" && !b.disabled){ b.dataset.confirma = ""; b.textContent = "apagar"; } }, 5000);
+    return;
+  }
+  b.disabled = true; b.textContent = "apagando…";
+  try {
+    await Store.remover(b.dataset.id, b.dataset.tipo, senhaAtual);
+    if (b.dataset.tipo === "presente") presentesRecebidos = presentesRecebidos.filter(g => String(g.id) !== b.dataset.id);
+    else respostas = respostas.filter(r => String(r.id) !== b.dataset.id);
+    desenhar(); recarregar();
+  } catch { b.disabled = false; b.dataset.confirma = ""; b.textContent = "não apagou — tente de novo"; }
+}
+$("#p-linhas").addEventListener("click", cliqueApagar);
+$("#p-lista-presentes").addEventListener("click", cliqueApagar);
 function zap(t){
   const d = String(t||"").replace(/\D/g,"");
   if (d.length < 10) return esc(t||"—");
