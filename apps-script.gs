@@ -19,7 +19,7 @@ const SENHA = 'troque-esta-senha';
 const EMAIL_AVISO = '';   // ex.: 'familia@gmail.com' — recebe um e-mail a cada confirmação e presente
 
 const CAMPOS = ['id','enviadoEm','nome','telefone','presenca','pessoas','acompanhantes','nomesAcompanhantes','presente','mensagem'];
-const CAMPOS_PRESENTE = ['id','enviadoEm','nome','itens','valor','pagamento','mensagem'];
+const CAMPOS_PRESENTE = ['id','enviadoEm','nome','itens','valor','pagamento','mensagem','ids'];
 
 // 1ª aba: confirmações de presença | aba "Presentes": presentes informados pelos convidados
 function aba_() {
@@ -33,6 +33,8 @@ function abaPresentes_() {
   const pl = SpreadsheetApp.getActiveSpreadsheet();
   const sh = pl.getSheetByName('Presentes') || pl.insertSheet('Presentes');
   if (sh.getLastRow() === 0) { sh.appendRow(CAMPOS_PRESENTE); sh.setFrozenRows(1); sh.getRange(1, 1, 1, CAMPOS_PRESENTE.length).setFontWeight('bold'); }
+  // planilha criada antes da coluna "ids" (códigos dos itens da lista): acrescenta o título
+  else if (String(sh.getRange(1, CAMPOS_PRESENTE.length).getValue()) !== 'ids') sh.getRange(1, CAMPOS_PRESENTE.length).setValue('ids').setFontWeight('bold');
   return sh;
 }
 function ler_(sh) {
@@ -81,6 +83,7 @@ function doPost(e) {
     if (d.tipo === 'presente') {
       d.valor = Math.max(0, Math.round((Number(d.valor) || 0) * 100) / 100);
       d.pagamento = d.pagamento === 'cartao' ? 'cartao' : 'pix';
+      d.ids = String(d.ids || '').replace(/[^\w,-]/g, '');
       if (jaExiste_(abaPresentes_(), d.id)) return json_({ ok: true, repetido: true });
       abaPresentes_().appendRow(CAMPOS_PRESENTE.map(c => c === 'valor' ? d.valor : celula_(d[c])));
       avisar_('🎁 Presente: ' + d.nome + ' (R$ ' + d.valor.toFixed(2).replace('.', ',') + ')',
@@ -102,6 +105,8 @@ function doPost(e) {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (p.acao === 'ping') return json_({ ok: true, ping: true });
+  // Pública: quais itens da lista já foram dados (sem nomes nem valores), para o convite marcar "já presenteado".
+  if (p.acao === 'comprados') return json_({ ok: true, comprados: ler_(abaPresentes_()).map(r => ({ ids: String(r.ids || ''), itens: String(r.itens || '') })) });
   if ((p.senha || '') !== SENHA) return json_({ ok: false, erro: 'senha' });
   if (p.acao === 'apagar') return json_(apagar_(p.tipo === 'presente' ? abaPresentes_() : aba_(), p.id));
   return json_({ ok: true, respostas: ler_(aba_()), presentes: ler_(abaPresentes_()), planilha: SpreadsheetApp.getActiveSpreadsheet().getUrl() });

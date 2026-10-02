@@ -239,6 +239,12 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
 .botao.peq{min-height:42px;padding:0 14px;font-size:.92rem;border-radius:12px;width:100%}
 .nota-cartao{margin:-6px 0 10px;text-align:center;font-size:.78rem;color:var(--cinza)}
 .livre input{min-height:42px;padding:8px 12px}
+.presente.comprado .foto img{opacity:.35;filter:grayscale(.7)}
+.presente.comprado .preco{color:var(--cinza);text-decoration:line-through;text-decoration-thickness:1px}
+.presente .selo-comprado{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--tinta);color:#fff;font-size:.8rem;font-weight:700;border-radius:999px;padding:5px 12px;white-space:nowrap}
+.botao.peq:disabled{opacity:.6;cursor:default}
+.qtd button:disabled{opacity:.3;cursor:default}
+.nota-unico{font-size:.88rem;margin:0 auto 14px;max-width:440px;color:var(--teal)}
 .carrinho-barra{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:center;gap:10px;white-space:nowrap;font-size:.95rem;
   background:var(--tinta);color:#fff;border:0;border-radius:999px;padding:8px 8px 8px 18px;box-shadow:0 16px 30px -12px rgba(7,50,48,.7);cursor:pointer;font-weight:600;max-width:calc(100% - 32px)}
 .carrinho-barra .total{font-variant-numeric:tabular-nums}
@@ -416,6 +422,7 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
         <img class="logo mini" data-logo alt="">
         <h2 class="titulo">Sugestões de presentes</h2>
         <p class="presentes-intro" data-cfg="frasePresentes"></p>
+        <p class="nota-unico">Cada presente pode ser escolhido uma vez. Os que já foram dados aparecem como <b>já presenteado</b>.</p>
         <p class="aviso-exemplo" id="aviso-exemplo" hidden>Lista de exemplo: os presentes de verdade entram aqui assim que os links forem enviados.</p>
         <div class="loja-barra">
           <select id="l-cat" aria-label="Categoria"></select>
@@ -453,10 +460,10 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
               <input type="radio" id="g-pix" name="pagamento" value="pix" checked><label for="g-pix"><b>Pix</b><small id="g-pix-sub">QR Code ou copia e cola</small></label>
               <input type="radio" id="g-cartao" name="pagamento" value="cartao"><label for="g-cartao"><b>Cartão de crédito</b><small id="g-cartao-sub">link de pagamento</small></label>
             </div>
-            <p class="importante" style="margin:10px 0 0">No pagamento, você vai <b>digitar o valor do presente</b> (o total acima) no app do banco ou no link do cartão.</p>
+            <p class="importante" style="margin:10px 0 0">No pagamento, você vai <b>digitar o valor do presente</b> (o total acima) no app do banco ou no link do cartão. Depois de pagar, toque em <b>“Já paguei”</b> para o presente ficar reservado no seu nome.</p>
           </div>
           <p class="erro" id="g-erro" role="alert" hidden></p>
-          <button class="botao rosa" type="submit" style="width:100%">Continuar para o pagamento</button>
+          <button class="botao rosa" type="submit" id="g-continuar" style="width:100%">Continuar para o pagamento</button>
         </form>
       </div>
 
@@ -869,6 +876,7 @@ function mostrarTela(id){
   $$(".tela").forEach(s => { const ver = s.id === id; s.hidden = !ver; s.classList.toggle("entra", ver && !SEM_MOVIMENTO); });
   telas.scrollTop = 0;
   if (typeof desenharBarra === "function") desenharBarra();
+  if (id === "presentes" && typeof sincronizarComprados === "function") sincronizarComprados();
 }
 function irPara(id){
   mostrarTela(id);
@@ -968,6 +976,54 @@ const Pix = {
 const itensLoja = CONFIG.presentes.map((p, i) => ({ ...p, id: p.id || "p" + i, ordem: i }));
 const carrinho = new Map();   // id -> { item, qtd }
 let livreSeq = 0;
+const ehLivre = id => String(id).startsWith("livre-");
+
+// Presentes já dados: cada item da lista só pode ser escolhido uma vez.
+// A planilha é a fonte (aba "Presentes"); apagar a linha no painel libera o item de novo.
+// O que este aparelho acabou de dar fica marcado na hora (por 2 h), mesmo antes de a planilha responder.
+const Comprados = {
+  K: "convite-isa-comprados", ultima: 0,
+  ids: new Set(),
+  locais(){
+    try { const o = JSON.parse(localStorage.getItem(this.K)) || {}; return Object.keys(o).filter(id => Date.now() - o[id] < 72e5); }
+    catch { return []; }
+  },
+  marcar(ids){
+    try { const o = JSON.parse(localStorage.getItem(this.K)) || {}; ids.forEach(id => o[id] = Date.now()); localStorage.setItem(this.K, JSON.stringify(o)); } catch {}
+    ids.forEach(id => this.ids.add(id));
+  },
+  tem(id){ return this.ids.has(id); },
+  async atualizar(forcar){
+    if (!forcar && Date.now() - this.ultima < 20000) return false;
+    this.ultima = Date.now();
+    let lista;
+    if (Store.modoPlanilha){
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
+      try { const j = await (await fetch(CONFIG.planilhaUrl + "?acao=comprados", { signal: ctl.signal })).json(); if (!j.ok || !Array.isArray(j.comprados)) return false; lista = j.comprados; }
+      catch { return false; }
+      finally { clearTimeout(t); }
+    } else lista = Local.ler(CHAVE_PRES);
+    const porNome = new Map(itensLoja.map(p => [p.nome, p.id]));
+    const novos = new Set(this.locais());
+    lista.forEach(g => {
+      String(g.ids || "").split(",").map(x => x.trim()).filter(Boolean).forEach(id => novos.add(id));
+      // linhas antigas (sem a coluna ids): reconhece pelo nome do item
+      String(g.itens || "").split(";").forEach(t => { const m = t.trim().match(/^\d+\s*[x×]\s*(.+)$/i); if (m && porNome.has(m[1].trim())) novos.add(porNome.get(m[1].trim())); });
+    });
+    this.ids = novos;
+    return true;
+  }
+};
+Comprados.ids = new Set(Comprados.locais());
+// tira do carrinho o que outro convidado acabou de dar; devolve os nomes retirados
+function tirarComprados(){
+  const fora = [];
+  carrinho.forEach(({ item }, id) => { if (!ehLivre(id) && Comprados.tem(id)){ fora.push(item.nome); carrinho.delete(id); } });
+  return fora;
+}
+async function sincronizarComprados(forcar){
+  if (await Comprados.atualizar(forcar)){ tirarComprados(); desenharLoja(); desenharBarra(); }
+}
 
 $("#aviso-exemplo").hidden = !itensLoja.some(p => p.exemplo);
 {
@@ -982,16 +1038,20 @@ function desenharLoja(){
   if (ordem === "menor") l.sort((a,b) => a.valor - b.valor);
   else if (ordem === "maior") l.sort((a,b) => b.valor - a.valor);
   else if (ordem === "az") l.sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  l.sort((a,b) => Comprados.tem(a.id) - Comprados.tem(b.id));   // já presenteados vão para o fim
   $("#loja").innerHTML = l.map(p => {
-    const q = carrinho.get(p.id)?.qtd || 0;
-    return `<article class="presente">
-      <div class="foto">${fotoHTML(p)}${p.exemplo ? `<span class="selo-ex">exemplo</span>` : ""}${q ? `<span class="qtd-no-carrinho">${q} no carrinho</span>` : ""}</div>
+    const q = carrinho.get(p.id)?.qtd || 0, dado = Comprados.tem(p.id);
+    const botao = dado ? `<button class="botao claro peq" type="button" disabled>Indisponível</button>`
+      : q ? `<button class="botao claro peq" type="button" data-tirar="${esc(p.id)}">No carrinho · tirar</button>`
+      : `<button class="botao rosa peq" type="button" data-add="${esc(p.id)}">Presentear</button>`;
+    return `<article class="presente${dado ? " comprado" : ""}">
+      <div class="foto">${fotoHTML(p)}${p.exemplo ? `<span class="selo-ex">exemplo</span>` : ""}${q ? `<span class="qtd-no-carrinho">no carrinho</span>` : ""}${dado ? `<span class="selo-comprado">Já presenteado ♡</span>` : ""}</div>
       <div class="info">
         ${p.categoria ? `<span class="cat">${esc(p.categoria)}</span>` : ""}
         <h3>${esc(p.nome)}</h3>
         ${p.link ? `<a class="ver-loja" href="${esc(p.link)}" target="_blank" rel="noopener">ver na loja${p.loja ? " · " + esc(p.loja) : ""}</a>` : ""}
         <span class="preco">${BRL(p.valor)}</span>
-        <button class="botao rosa peq" type="button" data-add="${esc(p.id)}">${q ? "Adicionar +1" : "Presentear"}</button>
+        ${botao}
       </div>
     </article>`;
   }).join("") + `<article class="presente livre">
@@ -1014,6 +1074,7 @@ function desenharBarra(){
   return { qtd, total };
 }
 function adicionar(item){
+  if (!item || (!ehLivre(item.id) && (Comprados.tem(item.id) || carrinho.has(item.id)))) return;   // cada item da lista: uma unidade
   const atual = carrinho.get(item.id);
   carrinho.set(item.id, { item, qtd: (atual?.qtd || 0) + 1 });
   desenharLoja(); desenharBarra();
@@ -1023,6 +1084,8 @@ $("#l-ordem").addEventListener("change", desenharLoja);
 $("#loja").addEventListener("click", e => {
   const b = e.target.closest("[data-add]");
   if (b){ adicionar(itensLoja.find(p => p.id === b.dataset.add)); return; }
+  const t = e.target.closest("[data-tirar]");
+  if (t){ carrinho.delete(t.dataset.tirar); desenharLoja(); desenharBarra(); return; }
   if (e.target.closest("#l-add-livre")){
     const campo = $("#l-valor-livre");
     const v = Number(String(campo.value).replace(/[^\d,.]/g,"").replace(/\.(?=\d{3}(\D|$))/g,"").replace(",", "."));
@@ -1044,7 +1107,7 @@ function desenharCarrinho(){
     <div class="linha-item">
       <span class="mini">${fotoHTML(item)}</span>
       <span><b>${esc(item.nome)}</b><small>${BRL(item.valor)} cada</small></span>
-      <span class="qtd"><button type="button" data-menos="${esc(item.id)}" aria-label="Diminuir">−</button><span>${qtd}</span><button type="button" data-mais="${esc(item.id)}" aria-label="Aumentar">+</button></span>
+      <span class="qtd"><button type="button" data-menos="${esc(item.id)}" aria-label="Diminuir">−</button><span>${qtd}</span><button type="button" data-mais="${esc(item.id)}" aria-label="Aumentar"${ehLivre(item.id) ? "" : " disabled"}>+</button></span>
     </div>`).join("") || `<p class="centro">Seu carrinho está vazio.</p>`;
   const { total } = desenharBarra();
   $("#c-total").textContent = BRL(total);
@@ -1070,16 +1133,26 @@ if (!temPix && temCartao) $("#g-cartao").checked = true;
 
 let pedido = null;
 const resumoItens = () => [...carrinho.values()].map(({ item, qtd }) => `${qtd}× ${item.nome}`).join("; ");
-$("#form-presente").addEventListener("submit", e => {
+$("#form-presente").addEventListener("submit", async e => {
   e.preventDefault();
   const erro = $("#g-erro"); erro.hidden = true;
   const nome = $("#g-nome").value.trim(), forma = new FormData(e.target).get("pagamento");
-  const total = [...carrinho.values()].reduce((s, { item, qtd }) => s + item.valor * qtd, 0);
   const falha = t => { erro.textContent = t; erro.hidden = false; };
   if (!carrinho.size) return falha("Escolha pelo menos um presente.");
   if (nome.length < 3){ $("#g-nome").focus(); return falha("Escreva seu nome para a Isa saber de quem é o presente."); }
   if (!forma) return falha("As formas de pagamento ainda estão sendo configuradas. Volte em breve.");
+  // confere na planilha se ninguém deu esses presentes enquanto o carrinho estava aberto
+  const bt = $("#g-continuar"); bt.disabled = true; bt.textContent = "Conferindo…";
+  await Comprados.atualizar(true);
+  bt.disabled = false; bt.textContent = "Continuar para o pagamento";
+  const fora = tirarComprados();
+  if (fora.length){
+    desenharCarrinho();
+    return falha(`${fora.length > 1 ? "Estes presentes acabaram" : "Este presente acabou"} de ser dado por outro convidado e ${fora.length > 1 ? "saíram" : "saiu"} do seu carrinho: ${fora.join(", ")}. Escolha outro na lista.`);
+  }
+  const total = [...carrinho.values()].reduce((s, { item, qtd }) => s + item.valor * qtd, 0);
   pedido = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nome, mensagem: $("#g-msg").value.trim(),
+             ids: [...carrinho.keys()].filter(id => !ehLivre(id)).join(","),
              itens: resumoItens(), valor: Math.round(total * (forma === "cartao" ? 1 + (PAG.acrescimoCartao || 0) : 1) * 100) / 100, pagamento: forma };
   document.querySelectorAll("[data-valor-pedido]").forEach(el => el.textContent = BRL(pedido.valor));
   if (forma === "pix"){
@@ -1111,6 +1184,7 @@ $$("[data-concluir]").forEach(b => b.addEventListener("click", async () => {
   if (!pedido) return;
   b.disabled = true;
   try { await Store.enviarPresente({ ...pedido, enviadoEm: new Date().toISOString() }); } catch {}
+  Comprados.marcar(pedido.ids ? pedido.ids.split(",") : []);
   b.disabled = false;
   const fimTexto = $("#fim-texto");
   fimTexto.textContent = `${pedido.nome.split(" ")[0]}, seu presente de ${BRL(pedido.valor)} foi registrado. A Isa vai adorar! `;
@@ -1121,6 +1195,10 @@ $$("[data-concluir]").forEach(b => b.addEventListener("click", async () => {
 }));
 $("#fim-fechar").addEventListener("click", fecharFolha);
 desenharLoja();
+sincronizarComprados(true);
+// confere de novo ao abrir a lista, a cada minuto com a lista aberta e ao voltar para a aba
+setInterval(() => { if (!$("#presentes").hidden && document.visibilityState === "visible") sincronizarComprados(true); }, 60000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sincronizarComprados(); });
 
 /* ---------- formulário do convidado ---------- */
 const form = $("#form-rsvp");
