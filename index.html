@@ -237,6 +237,7 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
 .presente .ver-loja{font-size:.78rem;color:var(--cinza);text-decoration:underline;text-underline-offset:2px;width:max-content}
 .preco{font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--fucsia-forte);font-variant-numeric:tabular-nums;margin-top:auto;padding-top:4px}
 .botao.peq{min-height:42px;padding:0 14px;font-size:.92rem;border-radius:12px;width:100%}
+.nota-cartao{margin:-6px 0 10px;text-align:center;font-size:.78rem;color:var(--cinza)}
 .livre input{min-height:42px;padding:8px 12px}
 .carrinho-barra{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:center;gap:10px;white-space:nowrap;font-size:.95rem;
   background:var(--tinta);color:#fff;border:0;border-radius:999px;padding:8px 8px 8px 18px;box-shadow:0 16px 30px -12px rgba(7,50,48,.7);cursor:pointer;font-weight:600;max-width:calc(100% - 32px)}
@@ -481,7 +482,8 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
       <div id="passo-cartao" hidden>
         <p class="centro chamada">Pague com cartão de crédito</p>
         <p class="valor-grande" id="cartao-valor"></p>
-        <p class="importante"><b>Importante:</b> o link de cartão não vem com o valor preenchido. Ao abrir, <b>digite o valor do presente: <span data-valor-pedido></span></b>, e depois finalize com os dados do cartão.</p>
+        <p class="nota-cartao">valor para pagamento no cartão de crédito</p>
+        <p class="importante"><b>Importante:</b> o link de cartão não vem com o valor preenchido. Ao abrir, <b>digite o valor: <span data-valor-pedido></span></b>, e depois finalize com os dados do cartão.</p>
         <div class="copia"><input id="cartao-valor-txt" type="text" readonly aria-label="Valor a pagar"><button class="botao claro" type="button" id="cartao-copiar">Copiar valor</button></div>
         <a class="botao rosa" id="cartao-link" href="#" target="_blank" rel="noopener" style="width:100%">Abrir pagamento com cartão ›</a>
         <p style="margin-top:10px;font-size:.92rem">O pagamento abre em outra aba, num ambiente seguro da maquininha. O valor cai direto para a família da Isa.</p>
@@ -595,7 +597,8 @@ const CONFIG = {
     chavePix: "+5511951923268",                 // CPF, celular (+5511...), e-mail ou chave aleatória. Vazio = Pix desligado
     recebedor: "ISA ESPINDOLA",   // nome que aparece no Pix (até 25 letras, sem acento)
     cidade: "SAO PAULO",          // cidade do recebedor (até 15 letras, sem acento)
-    linkCartao: "https://www.asaas.com/c/45vsnvcfos3d9k56" // link de pagamento da maquininha (InfinitePay, Mercado Pago, PagBank...). Vazio = cartão desligado
+    linkCartao: "https://link.mercadopago.com.br/isapresente15anos", // link de pagamento (Mercado Pago). Vazio = cartão desligado
+    acrescimoCartao: 0.05         // no cartão o valor a pagar é o do presente + 5% (taxa da maquininha). Pix = valor normal
   },
 
   // Lista de presentes. valor = preço da loja + 3% (já calculado). link = página do produto na loja. foto = imagem embutida (data:...) ou "" para ícone.
@@ -1077,7 +1080,7 @@ $("#form-presente").addEventListener("submit", e => {
   if (nome.length < 3){ $("#g-nome").focus(); return falha("Escreva seu nome para a Isa saber de quem é o presente."); }
   if (!forma) return falha("As formas de pagamento ainda estão sendo configuradas. Volte em breve.");
   pedido = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nome, mensagem: $("#g-msg").value.trim(),
-             itens: resumoItens(), valor: Math.round(total*100)/100, pagamento: forma };
+             itens: resumoItens(), valor: Math.round(total * (forma === "cartao" ? 1 + (PAG.acrescimoCartao || 0) : 1) * 100) / 100, pagamento: forma };
   document.querySelectorAll("[data-valor-pedido]").forEach(el => el.textContent = BRL(pedido.valor));
   if (forma === "pix"){
     const cod = Pix.codigo(pedido.valor, "XV" + pedido.id);
