@@ -475,10 +475,13 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
         <div class="pix-qr" id="pix-qr"></div>
         <label for="pix-codigo">Pix copia e cola</label>
         <div class="copia"><input id="pix-codigo" type="text" readonly><button class="botao rosa" type="button" id="pix-copiar">Copiar</button></div>
+        <label for="pix-chave">Ou pague pela chave Pix (celular)</label>
+        <div class="copia"><input id="pix-chave" type="text" readonly><button class="botao claro" type="button" id="pix-chave-copiar">Copiar chave</button></div>
         <ol class="passos-pag">
           <li>Abra o app do seu banco e escolha <b>Pix</b>.</li>
           <li>Leia o QR Code ou cole o código copiado.</li>
           <li>Confira se o valor é <b data-valor-pedido></b> (se estiver em branco, digite esse valor) e confirme.</li>
+          <li>Se o banco mostrar erro, espere alguns minutos e tente de novo, ou pague pela <b>chave Pix</b> acima digitando o valor.</li>
         </ol>
         <div class="pilha">
           <button class="botao rosa" type="button" data-concluir="pix">Já fiz o Pix</button>
@@ -968,7 +971,7 @@ const Pix = {
     const conta = t("00","br.gov.bcb.pix") + t("01", PAG.chavePix.trim()) + t("02","Presente XV Isa");
     const s = t("00","01") + t("26",conta) + t("52","0000") + t("53","986") + t("54", valor.toFixed(2)) + t("58","BR")
       + t("59", this.limpar(PAG.recebedor, 25) || "RECEBEDOR") + t("60", this.limpar(PAG.cidade, 15) || "SAO PAULO")
-      + t("62", t("05", this.limpar(txid, 25).replace(/ /g,"") || "***")) + "6304";
+      + t("62", t("05", "***")) + "6304";   // QR fixo sem identificador próprio: é o formato que todos os bancos aceitam
     return s + this.crc16(s);
   }
 };
@@ -1178,6 +1181,8 @@ async function copiar(txt, botao, rotulo){
   setTimeout(() => botao.textContent = rotulo, 2200);
 }
 $("#pix-copiar").addEventListener("click", e => copiar($("#pix-codigo").value, e.currentTarget, "Copiar"));
+$("#pix-chave").value = PAG.chavePix || "";
+$("#pix-chave-copiar").addEventListener("click", e => copiar($("#pix-chave").value, e.currentTarget, "Copiar chave"));
 $("#cartao-copiar").addEventListener("click", e => copiar($("#cartao-valor-txt").value, e.currentTarget, "Copiar valor"));
 $$("[data-voltar]").forEach(b => b.addEventListener("click", () => { passo("passo-carrinho"); desenharCarrinho(); }));
 $$("[data-concluir]").forEach(b => b.addEventListener("click", async () => {
