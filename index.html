@@ -369,11 +369,6 @@ th{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--te
                 <input type="radio" id="f-nao" name="presenca" value="nao"><label for="f-nao">Não poderei ir</label>
               </div>
             </div>
-            <div id="bloco-acomp">
-              <div><label for="f-acomp">Acompanhantes</label>
-                <select id="f-acomp" name="acompanhantes"><option value="0">Só eu</option><option value="1">+1 pessoa</option><option value="2">+2 pessoas</option><option value="3">+3 pessoas</option><option value="4">+4 pessoas</option></select></div>
-            </div>
-            <div id="bloco-nomes" hidden><label for="f-nomes">Nome dos acompanhantes</label><input id="f-nomes" name="nomesAcompanhantes" type="text" placeholder="Separe por vírgula"></div>
             <div><label for="f-msg">Recado para a Isa</label><textarea id="f-msg" name="mensagem" maxlength="400" placeholder="Opcional"></textarea></div>
             <p class="erro" id="f-erro" role="alert" hidden></p>
             <button class="botao rosa" type="submit" id="f-enviar" style="width:100%">Enviar confirmação</button>
@@ -1215,13 +1210,6 @@ const prazoEncerrado = () => new Date() > PRAZO;
     $$("#form-rsvp input, #form-rsvp select, #form-rsvp textarea, #form-rsvp button").forEach(c => c.disabled = true);
   } else el.textContent = `Confirme até ${DATA_PRAZO} · faltam ${dias} ${dias===1?"dia":"dias"}`;
 })();
-function sincronizarPresenca(){
-  const vai = form.presenca.value === "sim";
-  $("#bloco-acomp").hidden = !vai;
-  $("#bloco-nomes").hidden = !vai || form.acompanhantes.value === "0";
-}
-form.addEventListener("change", sincronizarPresenca);
-sincronizarPresenca();
 
 form.addEventListener("submit", async e => {
   e.preventDefault();
@@ -1229,12 +1217,12 @@ form.addEventListener("submit", async e => {
   if (prazoEncerrado()) return;
   const nome = form.nome.value.trim();
   if (nome.length < 3){ erro.textContent = "Escreva seu nome completo para a gente te encontrar na lista."; erro.hidden = false; form.nome.focus(); return; }
-  const vai = form.presenca.value === "sim", acomp = vai ? Number(form.acompanhantes.value) : 0;
+  const vai = form.presenca.value === "sim", acomp = 0;   // convite individual: sem acompanhantes (respostas antigas continuam no painel)
   const r = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
     nome, telefone: form.telefone.value.trim(), presenca: vai ? "sim" : "nao",
     acompanhantes: acomp, pessoas: vai ? 1 + acomp : 0,
-    nomesAcompanhantes: vai && acomp ? form.nomesAcompanhantes.value.trim() : "",
+    nomesAcompanhantes: "",
     presente: "", mensagem: form.mensagem.value.trim(),
     enviadoEm: new Date().toISOString()
   };
@@ -1242,13 +1230,13 @@ form.addEventListener("submit", async e => {
   try {
     await Store.enviar(r);
     $("#ok-titulo").textContent = vai ? "Oba, te espero!" : "Que pena!";
-    $("#ok-texto").textContent = vai ? `Presença confirmada para ${r.pessoas} ${r.pessoas===1?"pessoa":"pessoas"}. Nos vemos dia ${DIA_FESTA}!` : "Sua resposta foi registrada. Obrigada por avisar ♡";
+    $("#ok-texto").textContent = vai ? `Presença confirmada! Nos vemos dia ${DIA_FESTA}!` : "Sua resposta foi registrada. Obrigada por avisar ♡";
     form.hidden = true; $("#f-ok").hidden = false;
   } catch {
     erro.textContent = "Não conseguimos enviar agora. Verifique a internet e tente de novo."; erro.hidden = false;
   } finally { btn.disabled = false; btn.textContent = "Enviar confirmação"; }
 });
-$("#f-novo").addEventListener("click", () => { form.reset(); sincronizarPresenca(); form.hidden = false; $("#f-ok").hidden = true; form.nome.focus(); });
+$("#f-novo").addEventListener("click", () => { form.reset(); form.hidden = false; $("#f-ok").hidden = true; form.nome.focus(); });
 
 /* =====================================================================
    PAINEL DO RESPONSÁVEL — abre em  index.html#painel
