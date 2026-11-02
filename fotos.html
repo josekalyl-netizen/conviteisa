@@ -58,6 +58,10 @@ input[type=text]{width:100%;min-height:48px;border-radius:14px;border:1.5px soli
 .obrigada{font-family:var(--script);font-size:2.4rem;color:var(--fucsia-forte);text-align:center;line-height:1.1}
 .erro-geral{color:var(--fucsia-forte);font-weight:500;text-align:center;font-size:.95rem}
 .rodape{font-size:.8rem;color:var(--cinza)}
+.alternativa{display:flex;flex-direction:column;gap:8px;align-items:center;padding-top:4px}
+.alternativa p{font-size:.88rem;color:var(--cinza)}
+.botao.drive{min-height:46px;font-size:.95rem;max-width:340px}
+.botao.drive svg{width:20px;height:20px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>
 </head>
@@ -88,7 +92,16 @@ input[type=text]{width:100%;min-height:48px;border-radius:14px;border:1.5px soli
     <button class="botao rosa" type="button" id="mais">Enviar mais</button>
   </section>
 
-  <p class="rodape">Os arquivos vão direto para o álbum da Isa e não ficam públicos.</p>
+  <div class="alternativa">
+    <p>Prefere enviar pelo app do Google Drive?</p>
+    <a class="botao claro drive" id="link-drive" href="https://drive.google.com/drive/folders/17r3ia_6Gmq9pWwB7NAiD4rFfpAjyijfh" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M8 3h8l6 11-4 7H6l-4-7z"/><path d="M8 3l6 11h8M2 14h12l-4 7"/></svg>
+      Abrir a pasta no Google Drive
+    </a>
+    <p>No app, toque em <b>+</b> e depois em <b>Upload</b>. Precisa estar logado numa conta Google.</p>
+  </div>
+
+  <p class="rodape">Os arquivos vão direto para o álbum da Isa.</p>
 </main>
 
 <script>
