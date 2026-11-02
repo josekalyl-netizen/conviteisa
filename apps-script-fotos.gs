@@ -13,7 +13,7 @@
  */
 const PASTA = 'Fotos da festa – convidados';
 const ORIGEM = 'https://isaespindolaconvite.github.io';   // site que pode enviar arquivos
-const LIMITE_MB = 2048;                                     // tamanho máximo por arquivo
+const LIMITE_MB = 500;                                      // tamanho máximo por arquivo (MB)
 
 function pasta_() {
   const props = PropertiesService.getScriptProperties();

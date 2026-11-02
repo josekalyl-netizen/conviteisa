@@ -75,7 +75,7 @@ input[type=text]{width:100%;min-height:48px;border-radius:14px;border:1.5px soli
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
       Escolher fotos e vídeos
     </button>
-    <p class="dica">Pode escolher várias de uma vez. Mantenha esta página aberta até terminar o envio.</p>
+    <p class="dica">Pode escolher várias de uma vez (vídeos de até 500 MB, uns 3 minutos). Mantenha esta página aberta até terminar o envio.</p>
     <div class="lista" id="lista"></div>
     <p class="resumo" id="resumo" hidden></p>
     <p class="erro-geral" id="erro-geral" hidden></p>
@@ -94,6 +94,7 @@ input[type=text]{width:100%;min-height:48px;border-radius:14px;border:1.5px soli
 <script>
 /* Endereço do Apps Script de fotos (conta da Isa). Vazio = envio ainda não ligado. */
 const ENVIO_URL = "";
+const LIMITE_MB = 500;   // tamanho máximo por arquivo (igual ao LIMITE_MB do Apps Script)
 
 const $ = s => document.querySelector(s);
 const quem = $("#quem"), entrada = $("#arquivos"), lista = $("#lista");
@@ -102,7 +103,7 @@ quem.addEventListener("change", () => { try { localStorage.setItem("isa-fotos-no
 
 const tamanho = b => b > 1048576 ? (b/1048576).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(b/1024)) + " KB";
 const fila = [];   // { arq, el, estado: "espera" | "enviando" | "ok" | "erro" }
-let rodando = false, enviados = 0;
+let rodando = false, enviados = 0, grandes = 0;
 
 $("#escolher").addEventListener("click", () => {
   if (!ENVIO_URL){ mostrarErro("O envio de fotos é liberado no dia da festa. Volte mais tarde!"); return; }
@@ -120,6 +121,11 @@ entrada.addEventListener("change", () => {
     meio.append(nome, barra);
     const st = document.createElement("span"); st.className = "st"; st.textContent = "na fila";
     el.append(mini, meio, st); lista.appendChild(el);
+    if (arq.size > LIMITE_MB * 1048576){   // grande demais: nem tenta enviar
+      el.classList.add("erro"); st.textContent = "muito grande"; grandes++;
+      nome.textContent = `${arq.name} · ${tamanho(arq.size)} · máx. ${LIMITE_MB} MB por arquivo`;
+      return;
+    }
     fila.push({ arq, el, estado: "espera" });
   });
   entrada.value = "";
@@ -151,7 +157,9 @@ async function processar(){
   const falhas = fila.filter(f => f.estado === "erro").length;
   if (falhas) mostrarErro("Alguns arquivos não foram enviados. Verifique a internet e toque em “Tentar de novo”.");
   else if (fila.length){
-    $("#fim-texto").textContent = `${enviados} ${enviados === 1 ? "lembrança enviada" : "lembranças enviadas"} para o álbum da Isa. Pode mandar mais sempre que quiser!`;
+    $("#fim-texto").textContent = `${enviados} ${enviados === 1 ? "lembrança enviada" : "lembranças enviadas"} para o álbum da Isa. Pode mandar mais sempre que quiser!`
+      + (grandes ? ` (${grandes} ${grandes === 1 ? "vídeo passou" : "vídeos passaram"} de ${LIMITE_MB} MB e não ${grandes === 1 ? "foi enviado" : "foram enviados"}: grave trechos mais curtos.)` : "");
+    grandes = 0;
     $("#envio").hidden = true; $("#fim").hidden = false;
     fila.length = 0; lista.innerHTML = ""; atualizarResumo();
   }
